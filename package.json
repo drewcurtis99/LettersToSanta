@@ -1,0 +1,36 @@
+{
+  "name": "LettersToSanta",
+  "version": "1.0.0",
+  "description": "Full Stack Crud Application for the Holidays",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drewcurtis99/LettersToSanta.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/drewcurtis99/LettersToSanta/issues"
+  },
+  "homepage": "https://github.com/drewcurtis99/LettersToSanta#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4",
+    "pg": "^7.7.1",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.1.5",
+    "@babel/core": "^7.1.6",
+    "@babel/preset-env": "^7.1.6",
+    "@babel/preset-react": "^7.0.0",
+    "babel-loader": "^8.0.4",
+    "webpack": "^4.26.1",
+    "webpack-cli": "^3.1.2"
+  }
+}

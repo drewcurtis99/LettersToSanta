@@ -4,7 +4,11 @@
   "description": "Full Stack Crud Application for the Holidays",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "react-dev-w": "webpack -d --watch & nodemon --inspect server/index.js",
+    "react-dev": "webpack -d --watch",
+    "startmon": "nodemon --inspect server/index.js",
+    "db:init": "psql -d lts -U drewcurtis -c 'DROP TABLE IF EXISTS letters' && node db/init.js",
+    "db:start": "psql -d lts -U drewcurtis -f postgres.sql"
   },
   "repository": {
     "type": "git",
@@ -18,6 +22,7 @@
   },
   "homepage": "https://github.com/drewcurtis99/LettersToSanta#readme",
   "dependencies": {
+    "axios": "^0.18.0",
     "body-parser": "^1.18.3",
     "express": "^4.16.4",
     "pg": "^7.7.1",

@@ -3,6 +3,7 @@ import { render } from 'react-dom';
 import WriteLetter from './WriteLetter';
 import Inbox from './Inbox';
 import List from './List';
+import Snow from './Snow'
 import axios from 'axios';
 
 export default class App extends React.Component {
@@ -123,17 +124,18 @@ render() {
   if (this.state.inbox.length) {
     inbox = ( <Inbox messages={this.state.inbox} onLetterSubmit={this.onLetterSubmit} /> );
   } else {
-    inbox = ( <p>No Letters in Inbox</p> );
+    inbox = ( <div className="lts__inbox"><h2>INBOX</h2><p>No Letters in Inbox</p></div> );
   }
 
   let list;
   if (this.state.list.length) {
     list = ( <List list={this.state.list} onListSubmit={this.onListSubmit} /> );
   } else {
-    list = ( <p>List is Empty</p> );
+    list = ( <div className="lts__list"><h2>THE LIST</h2><p>List is Empty</p></div> );
   }
     return (
       <div className='lts__container'>
+        <Snow />
         <WriteLetter handleChange={this.handleChange} onWriteLetterSubmit={this.onWriteLetterSubmit} />
         {inbox}
         {list}

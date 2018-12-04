@@ -2,6 +2,148 @@ html, body
   margin 0
   padding 0
 
+.max-width
+  width 100%
+  max-width 980px
+  margin auto
+
 .lts
   &__container
-    background red
+
+  &__write-letter
+    &__form
+      @extend .max-width
+
+      &__top
+        display flex
+        justify-content space-between
+
+      input, textarea, button
+        margin 10px 0
+        font-size 16px
+        border none
+        border-radius 2px
+
+      input, button
+        display inline-block
+        padding 10px 20px
+
+      textarea
+        display block
+        width calc(100% - 40px)
+        min-height 200px
+        padding 20px
+
+  &__inbox,
+  &__list
+    @extend .max-width
+  &__item
+    padding 20px
+    margin 20px 0
+    border-radius 2px
+    background #FFF
+
+    p
+      margin-top 0
+
+    &__buttons
+      button
+        padding 5px 10px
+        font-size 16px
+        border-radius 2px
+        background-color #FFF
+
+      span
+        margin 0 10px
+
+@-webkit-keyframes snowflakes {
+  0% {
+    -webkit-transform: translate3d(0,0,0) rotate(0deg) scale(0.6);
+  }
+  100% {
+    -webkit-transform: translate3d(15px, calc(100vh + 90px), 0px) rotate(360deg) scale(0.6);
+  };
+}
+
+.snowflakes
+  width: 100%; height: calc(100vh + 90px);
+  position: absolute; top: -90px; left: 0;
+  background-color: red;
+  z-index: -1;
+
+  i
+    &, &:after, &:before { background: white; }
+    & {
+      display: inline-block;
+      -webkit-animation: snowflakes 3s linear 2s infinite;
+      -moz-animation: snowflakes 3s linear 2s infinite;
+      position: relative;
+    }
+    &:after, &:before {
+      height: 100%;
+      width: 100%;
+      content: ".";
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      -webkit-transform: rotate(120deg);
+    }
+    &:before { -webkit-transform: rotate(240deg); }
+
+    &:nth-child(3n) {
+      width: 16px; height: 4px;
+      -webkit-animation-duration: 4s;
+      -webkit-animation-iteration-count: 30;
+      -webkit-transform-origin: right -45px;
+    }
+
+    &:nth-child(3n+1) {
+      width: 24px; height: 6px;
+      -webkit-animation-duration: 6s;
+      -webkit-animation-iteration-count: 45;
+      -webkit-transform-origin: right -30px;
+    }
+
+    &:nth-child(3n+2) {
+      width: 32px; height: 8px;
+      -webkit-animation-duration: 8s;
+      -webkit-animation-iteration-count: 60;
+      -webkit-transform-origin: right -15px;
+    }
+
+    /* different delays so they don't all start at the same time */
+    &:nth-child(7n) {
+      opacity:.3;
+      -webkit-animation-delay: 0s;
+      -webkit-animation-timing-function:ease-in;
+    }
+    &:nth-child(7n+1) {
+      opacity:.4;
+      -webkit-animation-delay: 1s;
+      -webkit-animation-timing-function:ease-out;
+    }
+    &:nth-child(7n+2) {
+      opacity:.5;
+      -webkit-animation-delay: 1.5s;
+      -webkit-animation-timing-function:linear;
+    }
+    &:nth-child(7n+3) {
+      opacity:.6;
+      -webkit-animation-delay: 2s;
+      -webkit-animation-timing-function:ease-in;
+    }
+    &:nth-child(7n+4) {
+      opacity:.7;
+      -webkit-animation-delay: 2.5s;
+      -webkit-animation-timing-function:linear;
+    }
+    &:nth-child(7n+5) {
+      opacity:.8;
+      -webkit-animation-delay: 3s;
+      -webkit-animation-timing-function:ease-out;
+    }
+    &:nth-child(7n+6) {
+      opacity:.9;
+      -webkit-animation-delay: 3.5s;
+      -webkit-animation-timing-function:ease-in;
+    }

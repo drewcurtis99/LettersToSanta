@@ -3,8 +3,8 @@ import Person from './Person';
 
 const List = ({ list, onListSubmit }) => (
 
-  <div>
-    <p><b>THE LIST</b></p>
+  <div className="lts__list">
+    <h2>THE LIST</h2>
     {list.map(item => ( <Person key={item.id} item={item} onListSubmit={onListSubmit} /> ))}
   </div>
 );

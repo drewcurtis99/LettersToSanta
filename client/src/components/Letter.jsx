@@ -1,18 +1,21 @@
 import React from 'react';
 
-const Letter = ({ handleChange, onLetterSubmit }) => (
+const Letter = ({ item, onLetterSubmit }) => (
 
-  <div className="letter">
-    <h2>Author</h2>
-    <form onChange={handleChange} onSubmit={onLetterSubmit} >
-      <input className="letter-input" type="text"  name={'subject'} placeholder="Subject"></input>
-      <input className="letter-input" type="text"  name={'firstName'} placeholder="First Name"></input>
-      <input className="letter-input" type="text"  name={'lastName'} placeholder="Last Name"></input>
-      <input className="letter-input" type="text"  name={'country'} placeholder="Country"></input>
-      <input className="letter-input" type="text"  name={'city'} placeholder="City"></input>
-      <textarea className="letter-body-textarea"  name={'message'} placeholder="Write your letter here"></textarea>
-      <button className="letter-submit-button" type="submit">Send Letter</button>
-    </form>
+  <div>
+    <ul>
+      <li>
+          <div>Name: {item.firstname} {item.lastname}</div>
+          <div>Location: {item.city}, {item.country}</div>
+          <div>Subject: {item.subject}</div>
+          <div>Message: {item.message}</div>
+          <div>
+            <button onClick={(e) => onLetterSubmit(e, item)} name="Naughty" type="submit">Naughty</button>
+            <span>or</span>
+            <button onClick={(e) => onLetterSubmit(e, item)} name="Nice" type="submit">Nice</button>
+          </div>
+      </li>
+    </ul>
   </div>
 );
 

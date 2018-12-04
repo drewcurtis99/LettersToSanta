@@ -1,4 +1,706 @@
 /******/ (function(modules) { // webpackBootstrap
+/******/ 	function hotDisposeChunk(chunkId) {
+/******/ 		delete installedChunks[chunkId];
+/******/ 	}
+/******/ 	var parentHotUpdateCallback = window["webpackHotUpdate"];
+/******/ 	window["webpackHotUpdate"] = // eslint-disable-next-line no-unused-vars
+/******/ 	function webpackHotUpdateCallback(chunkId, moreModules) {
+/******/ 		hotAddUpdateChunk(chunkId, moreModules);
+/******/ 		if (parentHotUpdateCallback) parentHotUpdateCallback(chunkId, moreModules);
+/******/ 	} ;
+/******/
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	function hotDownloadUpdateChunk(chunkId) {
+/******/ 		var head = document.getElementsByTagName("head")[0];
+/******/ 		var script = document.createElement("script");
+/******/ 		script.charset = "utf-8";
+/******/ 		script.src = __webpack_require__.p + "" + chunkId + "." + hotCurrentHash + ".hot-update.js";
+/******/ 		if (null) script.crossOrigin = null;
+/******/ 		head.appendChild(script);
+/******/ 	}
+/******/
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	function hotDownloadManifest(requestTimeout) {
+/******/ 		requestTimeout = requestTimeout || 10000;
+/******/ 		return new Promise(function(resolve, reject) {
+/******/ 			if (typeof XMLHttpRequest === "undefined") {
+/******/ 				return reject(new Error("No browser support"));
+/******/ 			}
+/******/ 			try {
+/******/ 				var request = new XMLHttpRequest();
+/******/ 				var requestPath = __webpack_require__.p + "" + hotCurrentHash + ".hot-update.json";
+/******/ 				request.open("GET", requestPath, true);
+/******/ 				request.timeout = requestTimeout;
+/******/ 				request.send(null);
+/******/ 			} catch (err) {
+/******/ 				return reject(err);
+/******/ 			}
+/******/ 			request.onreadystatechange = function() {
+/******/ 				if (request.readyState !== 4) return;
+/******/ 				if (request.status === 0) {
+/******/ 					// timeout
+/******/ 					reject(
+/******/ 						new Error("Manifest request to " + requestPath + " timed out.")
+/******/ 					);
+/******/ 				} else if (request.status === 404) {
+/******/ 					// no update available
+/******/ 					resolve();
+/******/ 				} else if (request.status !== 200 && request.status !== 304) {
+/******/ 					// other failure
+/******/ 					reject(new Error("Manifest request to " + requestPath + " failed."));
+/******/ 				} else {
+/******/ 					// success
+/******/ 					try {
+/******/ 						var update = JSON.parse(request.responseText);
+/******/ 					} catch (e) {
+/******/ 						reject(e);
+/******/ 						return;
+/******/ 					}
+/******/ 					resolve(update);
+/******/ 				}
+/******/ 			};
+/******/ 		});
+/******/ 	}
+/******/
+/******/ 	var hotApplyOnUpdate = true;
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	var hotCurrentHash = "6bd1bda840833385504b";
+/******/ 	var hotRequestTimeout = 10000;
+/******/ 	var hotCurrentModuleData = {};
+/******/ 	var hotCurrentChildModule;
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	var hotCurrentParents = [];
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	var hotCurrentParentsTemp = [];
+/******/
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	function hotCreateRequire(moduleId) {
+/******/ 		var me = installedModules[moduleId];
+/******/ 		if (!me) return __webpack_require__;
+/******/ 		var fn = function(request) {
+/******/ 			if (me.hot.active) {
+/******/ 				if (installedModules[request]) {
+/******/ 					if (installedModules[request].parents.indexOf(moduleId) === -1) {
+/******/ 						installedModules[request].parents.push(moduleId);
+/******/ 					}
+/******/ 				} else {
+/******/ 					hotCurrentParents = [moduleId];
+/******/ 					hotCurrentChildModule = request;
+/******/ 				}
+/******/ 				if (me.children.indexOf(request) === -1) {
+/******/ 					me.children.push(request);
+/******/ 				}
+/******/ 			} else {
+/******/ 				console.warn(
+/******/ 					"[HMR] unexpected require(" +
+/******/ 						request +
+/******/ 						") from disposed module " +
+/******/ 						moduleId
+/******/ 				);
+/******/ 				hotCurrentParents = [];
+/******/ 			}
+/******/ 			return __webpack_require__(request);
+/******/ 		};
+/******/ 		var ObjectFactory = function ObjectFactory(name) {
+/******/ 			return {
+/******/ 				configurable: true,
+/******/ 				enumerable: true,
+/******/ 				get: function() {
+/******/ 					return __webpack_require__[name];
+/******/ 				},
+/******/ 				set: function(value) {
+/******/ 					__webpack_require__[name] = value;
+/******/ 				}
+/******/ 			};
+/******/ 		};
+/******/ 		for (var name in __webpack_require__) {
+/******/ 			if (
+/******/ 				Object.prototype.hasOwnProperty.call(__webpack_require__, name) &&
+/******/ 				name !== "e" &&
+/******/ 				name !== "t"
+/******/ 			) {
+/******/ 				Object.defineProperty(fn, name, ObjectFactory(name));
+/******/ 			}
+/******/ 		}
+/******/ 		fn.e = function(chunkId) {
+/******/ 			if (hotStatus === "ready") hotSetStatus("prepare");
+/******/ 			hotChunksLoading++;
+/******/ 			return __webpack_require__.e(chunkId).then(finishChunkLoading, function(err) {
+/******/ 				finishChunkLoading();
+/******/ 				throw err;
+/******/ 			});
+/******/
+/******/ 			function finishChunkLoading() {
+/******/ 				hotChunksLoading--;
+/******/ 				if (hotStatus === "prepare") {
+/******/ 					if (!hotWaitingFilesMap[chunkId]) {
+/******/ 						hotEnsureUpdateChunk(chunkId);
+/******/ 					}
+/******/ 					if (hotChunksLoading === 0 && hotWaitingFiles === 0) {
+/******/ 						hotUpdateDownloaded();
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 		fn.t = function(value, mode) {
+/******/ 			if (mode & 1) value = fn(value);
+/******/ 			return __webpack_require__.t(value, mode & ~1);
+/******/ 		};
+/******/ 		return fn;
+/******/ 	}
+/******/
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	function hotCreateModule(moduleId) {
+/******/ 		var hot = {
+/******/ 			// private stuff
+/******/ 			_acceptedDependencies: {},
+/******/ 			_declinedDependencies: {},
+/******/ 			_selfAccepted: false,
+/******/ 			_selfDeclined: false,
+/******/ 			_disposeHandlers: [],
+/******/ 			_main: hotCurrentChildModule !== moduleId,
+/******/
+/******/ 			// Module API
+/******/ 			active: true,
+/******/ 			accept: function(dep, callback) {
+/******/ 				if (dep === undefined) hot._selfAccepted = true;
+/******/ 				else if (typeof dep === "function") hot._selfAccepted = dep;
+/******/ 				else if (typeof dep === "object")
+/******/ 					for (var i = 0; i < dep.length; i++)
+/******/ 						hot._acceptedDependencies[dep[i]] = callback || function() {};
+/******/ 				else hot._acceptedDependencies[dep] = callback || function() {};
+/******/ 			},
+/******/ 			decline: function(dep) {
+/******/ 				if (dep === undefined) hot._selfDeclined = true;
+/******/ 				else if (typeof dep === "object")
+/******/ 					for (var i = 0; i < dep.length; i++)
+/******/ 						hot._declinedDependencies[dep[i]] = true;
+/******/ 				else hot._declinedDependencies[dep] = true;
+/******/ 			},
+/******/ 			dispose: function(callback) {
+/******/ 				hot._disposeHandlers.push(callback);
+/******/ 			},
+/******/ 			addDisposeHandler: function(callback) {
+/******/ 				hot._disposeHandlers.push(callback);
+/******/ 			},
+/******/ 			removeDisposeHandler: function(callback) {
+/******/ 				var idx = hot._disposeHandlers.indexOf(callback);
+/******/ 				if (idx >= 0) hot._disposeHandlers.splice(idx, 1);
+/******/ 			},
+/******/
+/******/ 			// Management API
+/******/ 			check: hotCheck,
+/******/ 			apply: hotApply,
+/******/ 			status: function(l) {
+/******/ 				if (!l) return hotStatus;
+/******/ 				hotStatusHandlers.push(l);
+/******/ 			},
+/******/ 			addStatusHandler: function(l) {
+/******/ 				hotStatusHandlers.push(l);
+/******/ 			},
+/******/ 			removeStatusHandler: function(l) {
+/******/ 				var idx = hotStatusHandlers.indexOf(l);
+/******/ 				if (idx >= 0) hotStatusHandlers.splice(idx, 1);
+/******/ 			},
+/******/
+/******/ 			//inherit from previous dispose call
+/******/ 			data: hotCurrentModuleData[moduleId]
+/******/ 		};
+/******/ 		hotCurrentChildModule = undefined;
+/******/ 		return hot;
+/******/ 	}
+/******/
+/******/ 	var hotStatusHandlers = [];
+/******/ 	var hotStatus = "idle";
+/******/
+/******/ 	function hotSetStatus(newStatus) {
+/******/ 		hotStatus = newStatus;
+/******/ 		for (var i = 0; i < hotStatusHandlers.length; i++)
+/******/ 			hotStatusHandlers[i].call(null, newStatus);
+/******/ 	}
+/******/
+/******/ 	// while downloading
+/******/ 	var hotWaitingFiles = 0;
+/******/ 	var hotChunksLoading = 0;
+/******/ 	var hotWaitingFilesMap = {};
+/******/ 	var hotRequestedFilesMap = {};
+/******/ 	var hotAvailableFilesMap = {};
+/******/ 	var hotDeferred;
+/******/
+/******/ 	// The update info
+/******/ 	var hotUpdate, hotUpdateNewHash;
+/******/
+/******/ 	function toModuleId(id) {
+/******/ 		var isNumber = +id + "" === id;
+/******/ 		return isNumber ? +id : id;
+/******/ 	}
+/******/
+/******/ 	function hotCheck(apply) {
+/******/ 		if (hotStatus !== "idle") {
+/******/ 			throw new Error("check() is only allowed in idle status");
+/******/ 		}
+/******/ 		hotApplyOnUpdate = apply;
+/******/ 		hotSetStatus("check");
+/******/ 		return hotDownloadManifest(hotRequestTimeout).then(function(update) {
+/******/ 			if (!update) {
+/******/ 				hotSetStatus("idle");
+/******/ 				return null;
+/******/ 			}
+/******/ 			hotRequestedFilesMap = {};
+/******/ 			hotWaitingFilesMap = {};
+/******/ 			hotAvailableFilesMap = update.c;
+/******/ 			hotUpdateNewHash = update.h;
+/******/
+/******/ 			hotSetStatus("prepare");
+/******/ 			var promise = new Promise(function(resolve, reject) {
+/******/ 				hotDeferred = {
+/******/ 					resolve: resolve,
+/******/ 					reject: reject
+/******/ 				};
+/******/ 			});
+/******/ 			hotUpdate = {};
+/******/ 			var chunkId = "main";
+/******/ 			// eslint-disable-next-line no-lone-blocks
+/******/ 			{
+/******/ 				/*globals chunkId */
+/******/ 				hotEnsureUpdateChunk(chunkId);
+/******/ 			}
+/******/ 			if (
+/******/ 				hotStatus === "prepare" &&
+/******/ 				hotChunksLoading === 0 &&
+/******/ 				hotWaitingFiles === 0
+/******/ 			) {
+/******/ 				hotUpdateDownloaded();
+/******/ 			}
+/******/ 			return promise;
+/******/ 		});
+/******/ 	}
+/******/
+/******/ 	// eslint-disable-next-line no-unused-vars
+/******/ 	function hotAddUpdateChunk(chunkId, moreModules) {
+/******/ 		if (!hotAvailableFilesMap[chunkId] || !hotRequestedFilesMap[chunkId])
+/******/ 			return;
+/******/ 		hotRequestedFilesMap[chunkId] = false;
+/******/ 		for (var moduleId in moreModules) {
+/******/ 			if (Object.prototype.hasOwnProperty.call(moreModules, moduleId)) {
+/******/ 				hotUpdate[moduleId] = moreModules[moduleId];
+/******/ 			}
+/******/ 		}
+/******/ 		if (--hotWaitingFiles === 0 && hotChunksLoading === 0) {
+/******/ 			hotUpdateDownloaded();
+/******/ 		}
+/******/ 	}
+/******/
+/******/ 	function hotEnsureUpdateChunk(chunkId) {
+/******/ 		if (!hotAvailableFilesMap[chunkId]) {
+/******/ 			hotWaitingFilesMap[chunkId] = true;
+/******/ 		} else {
+/******/ 			hotRequestedFilesMap[chunkId] = true;
+/******/ 			hotWaitingFiles++;
+/******/ 			hotDownloadUpdateChunk(chunkId);
+/******/ 		}
+/******/ 	}
+/******/
+/******/ 	function hotUpdateDownloaded() {
+/******/ 		hotSetStatus("ready");
+/******/ 		var deferred = hotDeferred;
+/******/ 		hotDeferred = null;
+/******/ 		if (!deferred) return;
+/******/ 		if (hotApplyOnUpdate) {
+/******/ 			// Wrap deferred object in Promise to mark it as a well-handled Promise to
+/******/ 			// avoid triggering uncaught exception warning in Chrome.
+/******/ 			// See https://bugs.chromium.org/p/chromium/issues/detail?id=465666
+/******/ 			Promise.resolve()
+/******/ 				.then(function() {
+/******/ 					return hotApply(hotApplyOnUpdate);
+/******/ 				})
+/******/ 				.then(
+/******/ 					function(result) {
+/******/ 						deferred.resolve(result);
+/******/ 					},
+/******/ 					function(err) {
+/******/ 						deferred.reject(err);
+/******/ 					}
+/******/ 				);
+/******/ 		} else {
+/******/ 			var outdatedModules = [];
+/******/ 			for (var id in hotUpdate) {
+/******/ 				if (Object.prototype.hasOwnProperty.call(hotUpdate, id)) {
+/******/ 					outdatedModules.push(toModuleId(id));
+/******/ 				}
+/******/ 			}
+/******/ 			deferred.resolve(outdatedModules);
+/******/ 		}
+/******/ 	}
+/******/
+/******/ 	function hotApply(options) {
+/******/ 		if (hotStatus !== "ready")
+/******/ 			throw new Error("apply() is only allowed in ready status");
+/******/ 		options = options || {};
+/******/
+/******/ 		var cb;
+/******/ 		var i;
+/******/ 		var j;
+/******/ 		var module;
+/******/ 		var moduleId;
+/******/
+/******/ 		function getAffectedStuff(updateModuleId) {
+/******/ 			var outdatedModules = [updateModuleId];
+/******/ 			var outdatedDependencies = {};
+/******/
+/******/ 			var queue = outdatedModules.slice().map(function(id) {
+/******/ 				return {
+/******/ 					chain: [id],
+/******/ 					id: id
+/******/ 				};
+/******/ 			});
+/******/ 			while (queue.length > 0) {
+/******/ 				var queueItem = queue.pop();
+/******/ 				var moduleId = queueItem.id;
+/******/ 				var chain = queueItem.chain;
+/******/ 				module = installedModules[moduleId];
+/******/ 				if (!module || module.hot._selfAccepted) continue;
+/******/ 				if (module.hot._selfDeclined) {
+/******/ 					return {
+/******/ 						type: "self-declined",
+/******/ 						chain: chain,
+/******/ 						moduleId: moduleId
+/******/ 					};
+/******/ 				}
+/******/ 				if (module.hot._main) {
+/******/ 					return {
+/******/ 						type: "unaccepted",
+/******/ 						chain: chain,
+/******/ 						moduleId: moduleId
+/******/ 					};
+/******/ 				}
+/******/ 				for (var i = 0; i < module.parents.length; i++) {
+/******/ 					var parentId = module.parents[i];
+/******/ 					var parent = installedModules[parentId];
+/******/ 					if (!parent) continue;
+/******/ 					if (parent.hot._declinedDependencies[moduleId]) {
+/******/ 						return {
+/******/ 							type: "declined",
+/******/ 							chain: chain.concat([parentId]),
+/******/ 							moduleId: moduleId,
+/******/ 							parentId: parentId
+/******/ 						};
+/******/ 					}
+/******/ 					if (outdatedModules.indexOf(parentId) !== -1) continue;
+/******/ 					if (parent.hot._acceptedDependencies[moduleId]) {
+/******/ 						if (!outdatedDependencies[parentId])
+/******/ 							outdatedDependencies[parentId] = [];
+/******/ 						addAllToSet(outdatedDependencies[parentId], [moduleId]);
+/******/ 						continue;
+/******/ 					}
+/******/ 					delete outdatedDependencies[parentId];
+/******/ 					outdatedModules.push(parentId);
+/******/ 					queue.push({
+/******/ 						chain: chain.concat([parentId]),
+/******/ 						id: parentId
+/******/ 					});
+/******/ 				}
+/******/ 			}
+/******/
+/******/ 			return {
+/******/ 				type: "accepted",
+/******/ 				moduleId: updateModuleId,
+/******/ 				outdatedModules: outdatedModules,
+/******/ 				outdatedDependencies: outdatedDependencies
+/******/ 			};
+/******/ 		}
+/******/
+/******/ 		function addAllToSet(a, b) {
+/******/ 			for (var i = 0; i < b.length; i++) {
+/******/ 				var item = b[i];
+/******/ 				if (a.indexOf(item) === -1) a.push(item);
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// at begin all updates modules are outdated
+/******/ 		// the "outdated" status can propagate to parents if they don't accept the children
+/******/ 		var outdatedDependencies = {};
+/******/ 		var outdatedModules = [];
+/******/ 		var appliedUpdate = {};
+/******/
+/******/ 		var warnUnexpectedRequire = function warnUnexpectedRequire() {
+/******/ 			console.warn(
+/******/ 				"[HMR] unexpected require(" + result.moduleId + ") to disposed module"
+/******/ 			);
+/******/ 		};
+/******/
+/******/ 		for (var id in hotUpdate) {
+/******/ 			if (Object.prototype.hasOwnProperty.call(hotUpdate, id)) {
+/******/ 				moduleId = toModuleId(id);
+/******/ 				/** @type {TODO} */
+/******/ 				var result;
+/******/ 				if (hotUpdate[id]) {
+/******/ 					result = getAffectedStuff(moduleId);
+/******/ 				} else {
+/******/ 					result = {
+/******/ 						type: "disposed",
+/******/ 						moduleId: id
+/******/ 					};
+/******/ 				}
+/******/ 				/** @type {Error|false} */
+/******/ 				var abortError = false;
+/******/ 				var doApply = false;
+/******/ 				var doDispose = false;
+/******/ 				var chainInfo = "";
+/******/ 				if (result.chain) {
+/******/ 					chainInfo = "\nUpdate propagation: " + result.chain.join(" -> ");
+/******/ 				}
+/******/ 				switch (result.type) {
+/******/ 					case "self-declined":
+/******/ 						if (options.onDeclined) options.onDeclined(result);
+/******/ 						if (!options.ignoreDeclined)
+/******/ 							abortError = new Error(
+/******/ 								"Aborted because of self decline: " +
+/******/ 									result.moduleId +
+/******/ 									chainInfo
+/******/ 							);
+/******/ 						break;
+/******/ 					case "declined":
+/******/ 						if (options.onDeclined) options.onDeclined(result);
+/******/ 						if (!options.ignoreDeclined)
+/******/ 							abortError = new Error(
+/******/ 								"Aborted because of declined dependency: " +
+/******/ 									result.moduleId +
+/******/ 									" in " +
+/******/ 									result.parentId +
+/******/ 									chainInfo
+/******/ 							);
+/******/ 						break;
+/******/ 					case "unaccepted":
+/******/ 						if (options.onUnaccepted) options.onUnaccepted(result);
+/******/ 						if (!options.ignoreUnaccepted)
+/******/ 							abortError = new Error(
+/******/ 								"Aborted because " + moduleId + " is not accepted" + chainInfo
+/******/ 							);
+/******/ 						break;
+/******/ 					case "accepted":
+/******/ 						if (options.onAccepted) options.onAccepted(result);
+/******/ 						doApply = true;
+/******/ 						break;
+/******/ 					case "disposed":
+/******/ 						if (options.onDisposed) options.onDisposed(result);
+/******/ 						doDispose = true;
+/******/ 						break;
+/******/ 					default:
+/******/ 						throw new Error("Unexception type " + result.type);
+/******/ 				}
+/******/ 				if (abortError) {
+/******/ 					hotSetStatus("abort");
+/******/ 					return Promise.reject(abortError);
+/******/ 				}
+/******/ 				if (doApply) {
+/******/ 					appliedUpdate[moduleId] = hotUpdate[moduleId];
+/******/ 					addAllToSet(outdatedModules, result.outdatedModules);
+/******/ 					for (moduleId in result.outdatedDependencies) {
+/******/ 						if (
+/******/ 							Object.prototype.hasOwnProperty.call(
+/******/ 								result.outdatedDependencies,
+/******/ 								moduleId
+/******/ 							)
+/******/ 						) {
+/******/ 							if (!outdatedDependencies[moduleId])
+/******/ 								outdatedDependencies[moduleId] = [];
+/******/ 							addAllToSet(
+/******/ 								outdatedDependencies[moduleId],
+/******/ 								result.outdatedDependencies[moduleId]
+/******/ 							);
+/******/ 						}
+/******/ 					}
+/******/ 				}
+/******/ 				if (doDispose) {
+/******/ 					addAllToSet(outdatedModules, [result.moduleId]);
+/******/ 					appliedUpdate[moduleId] = warnUnexpectedRequire;
+/******/ 				}
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// Store self accepted outdated modules to require them later by the module system
+/******/ 		var outdatedSelfAcceptedModules = [];
+/******/ 		for (i = 0; i < outdatedModules.length; i++) {
+/******/ 			moduleId = outdatedModules[i];
+/******/ 			if (
+/******/ 				installedModules[moduleId] &&
+/******/ 				installedModules[moduleId].hot._selfAccepted
+/******/ 			)
+/******/ 				outdatedSelfAcceptedModules.push({
+/******/ 					module: moduleId,
+/******/ 					errorHandler: installedModules[moduleId].hot._selfAccepted
+/******/ 				});
+/******/ 		}
+/******/
+/******/ 		// Now in "dispose" phase
+/******/ 		hotSetStatus("dispose");
+/******/ 		Object.keys(hotAvailableFilesMap).forEach(function(chunkId) {
+/******/ 			if (hotAvailableFilesMap[chunkId] === false) {
+/******/ 				hotDisposeChunk(chunkId);
+/******/ 			}
+/******/ 		});
+/******/
+/******/ 		var idx;
+/******/ 		var queue = outdatedModules.slice();
+/******/ 		while (queue.length > 0) {
+/******/ 			moduleId = queue.pop();
+/******/ 			module = installedModules[moduleId];
+/******/ 			if (!module) continue;
+/******/
+/******/ 			var data = {};
+/******/
+/******/ 			// Call dispose handlers
+/******/ 			var disposeHandlers = module.hot._disposeHandlers;
+/******/ 			for (j = 0; j < disposeHandlers.length; j++) {
+/******/ 				cb = disposeHandlers[j];
+/******/ 				cb(data);
+/******/ 			}
+/******/ 			hotCurrentModuleData[moduleId] = data;
+/******/
+/******/ 			// disable module (this disables requires from this module)
+/******/ 			module.hot.active = false;
+/******/
+/******/ 			// remove module from cache
+/******/ 			delete installedModules[moduleId];
+/******/
+/******/ 			// when disposing there is no need to call dispose handler
+/******/ 			delete outdatedDependencies[moduleId];
+/******/
+/******/ 			// remove "parents" references from all children
+/******/ 			for (j = 0; j < module.children.length; j++) {
+/******/ 				var child = installedModules[module.children[j]];
+/******/ 				if (!child) continue;
+/******/ 				idx = child.parents.indexOf(moduleId);
+/******/ 				if (idx >= 0) {
+/******/ 					child.parents.splice(idx, 1);
+/******/ 				}
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// remove outdated dependency from module children
+/******/ 		var dependency;
+/******/ 		var moduleOutdatedDependencies;
+/******/ 		for (moduleId in outdatedDependencies) {
+/******/ 			if (
+/******/ 				Object.prototype.hasOwnProperty.call(outdatedDependencies, moduleId)
+/******/ 			) {
+/******/ 				module = installedModules[moduleId];
+/******/ 				if (module) {
+/******/ 					moduleOutdatedDependencies = outdatedDependencies[moduleId];
+/******/ 					for (j = 0; j < moduleOutdatedDependencies.length; j++) {
+/******/ 						dependency = moduleOutdatedDependencies[j];
+/******/ 						idx = module.children.indexOf(dependency);
+/******/ 						if (idx >= 0) module.children.splice(idx, 1);
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// Not in "apply" phase
+/******/ 		hotSetStatus("apply");
+/******/
+/******/ 		hotCurrentHash = hotUpdateNewHash;
+/******/
+/******/ 		// insert new code
+/******/ 		for (moduleId in appliedUpdate) {
+/******/ 			if (Object.prototype.hasOwnProperty.call(appliedUpdate, moduleId)) {
+/******/ 				modules[moduleId] = appliedUpdate[moduleId];
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// call accept handlers
+/******/ 		var error = null;
+/******/ 		for (moduleId in outdatedDependencies) {
+/******/ 			if (
+/******/ 				Object.prototype.hasOwnProperty.call(outdatedDependencies, moduleId)
+/******/ 			) {
+/******/ 				module = installedModules[moduleId];
+/******/ 				if (module) {
+/******/ 					moduleOutdatedDependencies = outdatedDependencies[moduleId];
+/******/ 					var callbacks = [];
+/******/ 					for (i = 0; i < moduleOutdatedDependencies.length; i++) {
+/******/ 						dependency = moduleOutdatedDependencies[i];
+/******/ 						cb = module.hot._acceptedDependencies[dependency];
+/******/ 						if (cb) {
+/******/ 							if (callbacks.indexOf(cb) !== -1) continue;
+/******/ 							callbacks.push(cb);
+/******/ 						}
+/******/ 					}
+/******/ 					for (i = 0; i < callbacks.length; i++) {
+/******/ 						cb = callbacks[i];
+/******/ 						try {
+/******/ 							cb(moduleOutdatedDependencies);
+/******/ 						} catch (err) {
+/******/ 							if (options.onErrored) {
+/******/ 								options.onErrored({
+/******/ 									type: "accept-errored",
+/******/ 									moduleId: moduleId,
+/******/ 									dependencyId: moduleOutdatedDependencies[i],
+/******/ 									error: err
+/******/ 								});
+/******/ 							}
+/******/ 							if (!options.ignoreErrored) {
+/******/ 								if (!error) error = err;
+/******/ 							}
+/******/ 						}
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// Load self accepted modules
+/******/ 		for (i = 0; i < outdatedSelfAcceptedModules.length; i++) {
+/******/ 			var item = outdatedSelfAcceptedModules[i];
+/******/ 			moduleId = item.module;
+/******/ 			hotCurrentParents = [moduleId];
+/******/ 			try {
+/******/ 				__webpack_require__(moduleId);
+/******/ 			} catch (err) {
+/******/ 				if (typeof item.errorHandler === "function") {
+/******/ 					try {
+/******/ 						item.errorHandler(err);
+/******/ 					} catch (err2) {
+/******/ 						if (options.onErrored) {
+/******/ 							options.onErrored({
+/******/ 								type: "self-accept-error-handler-errored",
+/******/ 								moduleId: moduleId,
+/******/ 								error: err2,
+/******/ 								originalError: err
+/******/ 							});
+/******/ 						}
+/******/ 						if (!options.ignoreErrored) {
+/******/ 							if (!error) error = err2;
+/******/ 						}
+/******/ 						if (!error) error = err;
+/******/ 					}
+/******/ 				} else {
+/******/ 					if (options.onErrored) {
+/******/ 						options.onErrored({
+/******/ 							type: "self-accept-errored",
+/******/ 							moduleId: moduleId,
+/******/ 							error: err
+/******/ 						});
+/******/ 					}
+/******/ 					if (!options.ignoreErrored) {
+/******/ 						if (!error) error = err;
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		// handle errors in accept handlers and self accepted module load
+/******/ 		if (error) {
+/******/ 			hotSetStatus("fail");
+/******/ 			return Promise.reject(error);
+/******/ 		}
+/******/
+/******/ 		hotSetStatus("idle");
+/******/ 		return new Promise(function(resolve) {
+/******/ 			resolve(outdatedModules);
+/******/ 		});
+/******/ 	}
+/******/
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
 /******/
@@ -13,11 +715,14 @@
 /******/ 		var module = installedModules[moduleId] = {
 /******/ 			i: moduleId,
 /******/ 			l: false,
-/******/ 			exports: {}
+/******/ 			exports: {},
+/******/ 			hot: hotCreateModule(moduleId),
+/******/ 			parents: (hotCurrentParentsTemp = hotCurrentParents, hotCurrentParents = [], hotCurrentParentsTemp),
+/******/ 			children: []
 /******/ 		};
 /******/
 /******/ 		// Execute the module function
-/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, hotCreateRequire(moduleId));
 /******/
 /******/ 		// Flag the module as loaded
 /******/ 		module.l = true;
@@ -79,9 +784,12 @@
 /******/ 	// __webpack_public_path__
 /******/ 	__webpack_require__.p = "";
 /******/
+/******/ 	// __webpack_hash__
+/******/ 	__webpack_require__.h = function() { return hotCurrentHash; };
+/******/
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = "./client/src/index.jsx");
+/******/ 	return hotCreateRequire("./client/src/index.jsx")(__webpack_require__.s = "./client/src/index.jsx");
 /******/ })
 /************************************************************************/
 /******/ ({
@@ -94,7 +802,19 @@
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, \"default\", function() { return App; });\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom */ \"./node_modules/react-dom/index.js\");\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_dom__WEBPACK_IMPORTED_MODULE_1__);\n/* harmony import */ var _Letter__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./Letter */ \"./client/src/components/Letter.jsx\");\n/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! axios */ \"./node_modules/axios/index.js\");\n/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_3__);\nfunction _typeof(obj) { if (typeof Symbol === \"function\" && typeof Symbol.iterator === \"symbol\") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === \"function\" && obj.constructor === Symbol && obj !== Symbol.prototype ? \"symbol\" : typeof obj; }; } return _typeof(obj); }\n\nfunction _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }\n\nfunction _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\"); } }\n\nfunction _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if (\"value\" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }\n\nfunction _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }\n\nfunction _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === \"object\" || typeof call === \"function\")) { return call; } return _assertThisInitialized(self); }\n\nfunction _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }\n\nfunction _inherits(subClass, superClass) { if (typeof superClass !== \"function\" && superClass !== null) { throw new TypeError(\"Super expression must either be null or a function\"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }\n\nfunction _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }\n\nfunction _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError(\"this hasn't been initialised - super() hasn't been called\"); } return self; }\n\n\n\n\n\n\nvar App =\n/*#__PURE__*/\nfunction (_React$Component) {\n  _inherits(App, _React$Component);\n\n  function App() {\n    var _this;\n\n    _classCallCheck(this, App);\n\n    _this = _possibleConstructorReturn(this, _getPrototypeOf(App).call(this));\n    _this.state = {\n      subject: '',\n      firstName: '',\n      lastName: '',\n      country: '',\n      city: '',\n      message: ''\n    };\n    _this.handleChange = _this.handleChange.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.onLetterSubmit = _this.onLetterSubmit.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    return _this;\n  }\n\n  _createClass(App, [{\n    key: \"onLetterSubmit\",\n    value: function onLetterSubmit(e) {\n      e.preventDefault();\n      axios__WEBPACK_IMPORTED_MODULE_3___default.a.post('/api/letters', {\n        \"subject\": this.state.subject,\n        \"firstName\": this.state.firstName,\n        \"lastName\": this.state.lastName,\n        \"country\": this.state.country,\n        \"city\": this.state.city,\n        \"message\": this.state.body\n      }).then(function (response) {\n        console.log(response);\n      }).catch(function (error) {\n        console.log(error);\n      });\n    }\n  }, {\n    key: \"handleChange\",\n    value: function handleChange(e) {\n      this.setState(_defineProperty({}, e.target.name, e.target.value));\n    }\n  }, {\n    key: \"render\",\n    value: function render() {\n      return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"p\", null, \"Rise & Grind\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Letter__WEBPACK_IMPORTED_MODULE_2__[\"default\"], {\n        handleChange: this.handleChange,\n        onLetterSubmit: this.onLetterSubmit\n      }));\n    }\n  }]);\n\n  return App;\n}(react__WEBPACK_IMPORTED_MODULE_0___default.a.Component);\n\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvQXBwLmpzeC5qcyIsInNvdXJjZXMiOlsid2VicGFjazovLy8uL2NsaWVudC9zcmMvY29tcG9uZW50cy9BcHAuanN4P2U1N2YiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IENvbXBvbmVudCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IHJlbmRlciB9IGZyb20gJ3JlYWN0LWRvbSc7XG5pbXBvcnQgTGV0dGVyIGZyb20gJy4vTGV0dGVyJztcbmltcG9ydCBheGlvcyBmcm9tICdheGlvcyc7XG5cbmV4cG9ydCBkZWZhdWx0IGNsYXNzIEFwcCBleHRlbmRzIFJlYWN0LkNvbXBvbmVudCB7XG4gIGNvbnN0cnVjdG9yICgpIHtcbiAgICBzdXBlciAoKTtcbiAgICB0aGlzLnN0YXRlID0ge1xuICAgICAgc3ViamVjdDogJycsXG4gICAgICBmaXJzdE5hbWU6ICcnLFxuICAgICAgbGFzdE5hbWU6ICcnLFxuICAgICAgY291bnRyeTogJycsXG4gICAgICBjaXR5OiAnJyxcbiAgICAgIG1lc3NhZ2U6ICcnXG4gICAgfTtcblxuICAgIHRoaXMuaGFuZGxlQ2hhbmdlID0gdGhpcy5oYW5kbGVDaGFuZ2UuYmluZCh0aGlzKTtcbiAgICB0aGlzLm9uTGV0dGVyU3VibWl0ID0gdGhpcy5vbkxldHRlclN1Ym1pdC5iaW5kKHRoaXMpO1xuICB9XG5cbm9uTGV0dGVyU3VibWl0KGUpIHtcbiAgZS5wcmV2ZW50RGVmYXVsdCgpO1xuICBheGlvcy5wb3N0KCcvYXBpL2xldHRlcnMnLCB7XG4gIFwic3ViamVjdFwiOiB0aGlzLnN0YXRlLnN1YmplY3QsXG4gIFwiZmlyc3ROYW1lXCI6IHRoaXMuc3RhdGUuZmlyc3ROYW1lLFxuICBcImxhc3ROYW1lXCI6IHRoaXMuc3RhdGUubGFzdE5hbWUsXG4gIFwiY291bnRyeVwiOiB0aGlzLnN0YXRlLmNvdW50cnksXG4gIFwiY2l0eVwiOiB0aGlzLnN0YXRlLmNpdHksXG4gIFwibWVzc2FnZVwiOiB0aGlzLnN0YXRlLmJvZHlcbiAgfSlcbiAgLnRoZW4oZnVuY3Rpb24gKHJlc3BvbnNlKSB7XG4gICAgY29uc29sZS5sb2cocmVzcG9uc2UpO1xuICB9KVxuICAuY2F0Y2goZnVuY3Rpb24gKGVycm9yKSB7XG4gICAgY29uc29sZS5sb2coZXJyb3IpO1xuICB9KTtcbn1cblxuaGFuZGxlQ2hhbmdlKGUpIHtcbiAgdGhpcy5zZXRTdGF0ZSh7W2UudGFyZ2V0Lm5hbWVdIDogZS50YXJnZXQudmFsdWV9KVxufVxuXG5yZW5kZXIoKSB7XG4gICAgcmV0dXJuIChcbiAgICAgIDxkaXY+XG4gICAgICAgIDxwPlJpc2UgJiBHcmluZDwvcD5cbiAgICAgICAgPExldHRlciBoYW5kbGVDaGFuZ2U9e3RoaXMuaGFuZGxlQ2hhbmdlfSBvbkxldHRlclN1Ym1pdD17dGhpcy5vbkxldHRlclN1Ym1pdH0gLz5cbiAgICAgIDwvZGl2PlxuICAgICk7XG4gIH1cbn0iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUE7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBOzs7OztBQUNBO0FBQUE7QUFDQTtBQURBO0FBQ0E7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBTkE7QUFTQTtBQUNBO0FBWkE7QUFhQTtBQUNBOzs7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFOQTtBQVNBO0FBQ0E7QUFFQTtBQUNBO0FBQ0E7OztBQUVBO0FBQ0E7QUFDQTs7O0FBRUE7QUFDQTtBQUdBO0FBQUE7QUFBQTtBQUdBOzs7O0FBN0NBO0FBQ0E7Iiwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///./client/src/components/App.jsx\n");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, \"default\", function() { return App; });\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom */ \"./node_modules/react-dom/index.js\");\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_dom__WEBPACK_IMPORTED_MODULE_1__);\n/* harmony import */ var _WriteLetter__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./WriteLetter */ \"./client/src/components/WriteLetter.jsx\");\n/* harmony import */ var _Inbox__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Inbox */ \"./client/src/components/Inbox.jsx\");\n/* harmony import */ var _List__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./List */ \"./client/src/components/List.jsx\");\n/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! axios */ \"./node_modules/axios/index.js\");\n/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_5__);\nfunction _typeof(obj) { if (typeof Symbol === \"function\" && typeof Symbol.iterator === \"symbol\") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === \"function\" && obj.constructor === Symbol && obj !== Symbol.prototype ? \"symbol\" : typeof obj; }; } return _typeof(obj); }\n\nfunction _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }\n\nfunction _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\"); } }\n\nfunction _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if (\"value\" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }\n\nfunction _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }\n\nfunction _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === \"object\" || typeof call === \"function\")) { return call; } return _assertThisInitialized(self); }\n\nfunction _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }\n\nfunction _inherits(subClass, superClass) { if (typeof superClass !== \"function\" && superClass !== null) { throw new TypeError(\"Super expression must either be null or a function\"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }\n\nfunction _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }\n\nfunction _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError(\"this hasn't been initialised - super() hasn't been called\"); } return self; }\n\n\n\n\n\n\n\n\nvar App =\n/*#__PURE__*/\nfunction (_React$Component) {\n  _inherits(App, _React$Component);\n\n  function App() {\n    var _this;\n\n    _classCallCheck(this, App);\n\n    _this = _possibleConstructorReturn(this, _getPrototypeOf(App).call(this));\n    _this.state = {\n      inbox: [],\n      list: [],\n      subject: '',\n      firstName: '',\n      lastName: '',\n      country: '',\n      city: '',\n      message: ''\n    };\n    _this.handleChange = _this.handleChange.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.onWriteLetterSubmit = _this.onWriteLetterSubmit.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.updateState = _this.updateState.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.getCurrentItem = _this.getCurrentItem.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.onLetterSubmit = _this.onLetterSubmit.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    _this.onListSubmit = _this.onListSubmit.bind(_assertThisInitialized(_assertThisInitialized(_this)));\n    return _this;\n  }\n\n  _createClass(App, [{\n    key: \"componentDidMount\",\n    value: function componentDidMount() {\n      var _this2 = this;\n\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.get('/letters').then(function (response) {\n        _this2.setState({\n          inbox: response.data\n        });\n      }).catch(function (error) {\n        console.log(error);\n      });\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.get('/list').then(function (response) {\n        _this2.setState({\n          list: response.data\n        });\n      }).catch(function (error) {\n        console.log(error);\n      });\n    }\n  }, {\n    key: \"onWriteLetterSubmit\",\n    value: function onWriteLetterSubmit(e) {\n      var _this3 = this;\n\n      e.preventDefault();\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.post('/api/letters', {\n        \"subject\": this.state.subject,\n        \"firstName\": this.state.firstName,\n        \"lastName\": this.state.lastName,\n        \"country\": this.state.country,\n        \"city\": this.state.city,\n        \"message\": this.state.message\n      }).then(function (response) {\n        _this3.getCurrentItem(_this3.updateState, \"inbox\", \"/letters\");\n      }).catch(function (error) {\n        console.log(error);\n      });\n    }\n  }, {\n    key: \"onLetterSubmit\",\n    value: function onLetterSubmit(e, item) {\n      var _this4 = this;\n\n      e.preventDefault();\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.post('/api/list', {\n        \"firstName\": item.firstname,\n        \"lastName\": item.lastname,\n        \"country\": item.country,\n        \"city\": item.city,\n        \"isNice\": e.target.name === \"Nice\" ? true : false,\n        \"isChecked\": false\n      }).then(function (response) {\n        _this4.getCurrentItem(_this4.updateState, \"list\", \"/list\");\n\n        axios__WEBPACK_IMPORTED_MODULE_5___default.a.delete(\"/api/letters/\".concat(item.id)).then(function (data) {\n          return _this4.getCurrentItem(_this4.updateState, \"inbox\", \"/letters\");\n        }).catch(function (error) {\n          return console.error(error);\n        });\n      }).catch(function (error) {\n        console.log(error);\n      });\n    }\n  }, {\n    key: \"onListSubmit\",\n    value: function onListSubmit(e, item) {\n      var _this5 = this;\n\n      e.preventDefault();\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.put(\"/api/list/\".concat(item.id), {\n        \"isNice\": e.target.name === \"Nice\" ? true : false,\n        \"isChecked\": true\n      }).then(function (response) {\n        _this5.getCurrentItem(_this5.updateState, \"list\", \"/list\");\n      }).catch(function (error) {\n        console.log(error);\n      });\n    }\n  }, {\n    key: \"getCurrentItem\",\n    value: function getCurrentItem(cb, state, endpoint) {\n      axios__WEBPACK_IMPORTED_MODULE_5___default.a.get(endpoint).then(function (data) {\n        return cb(state, data.data);\n      }).catch(function (error) {\n        return console.error(error);\n      });\n    }\n  }, {\n    key: \"updateState\",\n    value: function updateState(prop, value) {\n      this.setState(_defineProperty({}, prop, value));\n    }\n  }, {\n    key: \"handleChange\",\n    value: function handleChange(e) {\n      this.setState(_defineProperty({}, e.target.name, e.target.value));\n    }\n  }, {\n    key: \"render\",\n    value: function render() {\n      var inbox;\n\n      if (this.state.inbox.length) {\n        inbox = react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Inbox__WEBPACK_IMPORTED_MODULE_3__[\"default\"], {\n          messages: this.state.inbox,\n          onLetterSubmit: this.onLetterSubmit\n        });\n      } else {\n        inbox = react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"p\", null, \"No Letters in Inbox\");\n      }\n\n      var list;\n\n      if (this.state.list.length) {\n        list = react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_List__WEBPACK_IMPORTED_MODULE_4__[\"default\"], {\n          list: this.state.list,\n          onListSubmit: this.onListSubmit\n        });\n      } else {\n        list = react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"p\", null, \"List is Empty\");\n      }\n\n      return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", {\n        className: \"lts__container\"\n      }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_WriteLetter__WEBPACK_IMPORTED_MODULE_2__[\"default\"], {\n        handleChange: this.handleChange,\n        onWriteLetterSubmit: this.onWriteLetterSubmit\n      }), inbox, list);\n    }\n  }]);\n\n  return App;\n}(react__WEBPACK_IMPORTED_MODULE_0___default.a.Component);\n\n//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvQXBwLmpzeC5qcyIsInNvdXJjZXMiOlsid2VicGFjazovLy8uL2NsaWVudC9zcmMvY29tcG9uZW50cy9BcHAuanN4P2U1N2YiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IENvbXBvbmVudCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IHJlbmRlciB9IGZyb20gJ3JlYWN0LWRvbSc7XG5pbXBvcnQgV3JpdGVMZXR0ZXIgZnJvbSAnLi9Xcml0ZUxldHRlcic7XG5pbXBvcnQgSW5ib3ggZnJvbSAnLi9JbmJveCc7XG5pbXBvcnQgTGlzdCBmcm9tICcuL0xpc3QnO1xuaW1wb3J0IGF4aW9zIGZyb20gJ2F4aW9zJztcblxuZXhwb3J0IGRlZmF1bHQgY2xhc3MgQXBwIGV4dGVuZHMgUmVhY3QuQ29tcG9uZW50IHtcbiAgY29uc3RydWN0b3IgKCkge1xuICAgIHN1cGVyICgpO1xuICAgIHRoaXMuc3RhdGUgPSB7XG4gICAgICBpbmJveDogW10sXG4gICAgICBsaXN0OiBbXSxcbiAgICAgIHN1YmplY3Q6ICcnLFxuICAgICAgZmlyc3ROYW1lOiAnJyxcbiAgICAgIGxhc3ROYW1lOiAnJyxcbiAgICAgIGNvdW50cnk6ICcnLFxuICAgICAgY2l0eTogJycsXG4gICAgICBtZXNzYWdlOiAnJ1xuICAgIH07XG5cbiAgICB0aGlzLmhhbmRsZUNoYW5nZSA9IHRoaXMuaGFuZGxlQ2hhbmdlLmJpbmQodGhpcyk7XG4gICAgdGhpcy5vbldyaXRlTGV0dGVyU3VibWl0ID0gdGhpcy5vbldyaXRlTGV0dGVyU3VibWl0LmJpbmQodGhpcyk7XG4gICAgdGhpcy51cGRhdGVTdGF0ZSA9IHRoaXMudXBkYXRlU3RhdGUuYmluZCh0aGlzKTtcbiAgICB0aGlzLmdldEN1cnJlbnRJdGVtID0gdGhpcy5nZXRDdXJyZW50SXRlbS5iaW5kKHRoaXMpO1xuICAgIHRoaXMub25MZXR0ZXJTdWJtaXQgPSB0aGlzLm9uTGV0dGVyU3VibWl0LmJpbmQodGhpcyk7XG4gICAgdGhpcy5vbkxpc3RTdWJtaXQgPSB0aGlzLm9uTGlzdFN1Ym1pdC5iaW5kKHRoaXMpO1xuICB9XG5cbmNvbXBvbmVudERpZE1vdW50KCkge1xuICBheGlvcy5nZXQoJy9sZXR0ZXJzJylcbiAgLnRoZW4ocmVzcG9uc2UgPT4ge1xuICAgIHRoaXMuc2V0U3RhdGUoe1xuICAgICAgaW5ib3ggOiByZXNwb25zZS5kYXRhXG4gICAgfSlcbiAgfSlcbiAgLmNhdGNoKGZ1bmN0aW9uIChlcnJvcikge1xuICAgIGNvbnNvbGUubG9nKGVycm9yKTtcbiAgfSk7XG5cbiAgYXhpb3MuZ2V0KCcvbGlzdCcpXG4gIC50aGVuKHJlc3BvbnNlID0+IHtcbiAgICB0aGlzLnNldFN0YXRlKHtcbiAgICAgIGxpc3QgOiByZXNwb25zZS5kYXRhXG4gICAgfSlcbiAgfSlcbiAgLmNhdGNoKGZ1bmN0aW9uIChlcnJvcikge1xuICAgIGNvbnNvbGUubG9nKGVycm9yKTtcbiAgfSk7XG59XG5cbm9uV3JpdGVMZXR0ZXJTdWJtaXQoZSkge1xuICBlLnByZXZlbnREZWZhdWx0KCk7XG4gIGF4aW9zLnBvc3QoJy9hcGkvbGV0dGVycycsIHtcbiAgXCJzdWJqZWN0XCI6IHRoaXMuc3RhdGUuc3ViamVjdCxcbiAgXCJmaXJzdE5hbWVcIjogdGhpcy5zdGF0ZS5maXJzdE5hbWUsXG4gIFwibGFzdE5hbWVcIjogdGhpcy5zdGF0ZS5sYXN0TmFtZSxcbiAgXCJjb3VudHJ5XCI6IHRoaXMuc3RhdGUuY291bnRyeSxcbiAgXCJjaXR5XCI6IHRoaXMuc3RhdGUuY2l0eSxcbiAgXCJtZXNzYWdlXCI6IHRoaXMuc3RhdGUubWVzc2FnZVxuICB9KVxuICAudGhlbihyZXNwb25zZSA9PiB7XG4gICAgdGhpcy5nZXRDdXJyZW50SXRlbSh0aGlzLnVwZGF0ZVN0YXRlLCBcImluYm94XCIsIGAvbGV0dGVyc2ApXG4gIH0pXG4gIC5jYXRjaChmdW5jdGlvbiAoZXJyb3IpIHtcbiAgICBjb25zb2xlLmxvZyhlcnJvcik7XG4gIH0pO1xufVxuXG5vbkxldHRlclN1Ym1pdChlLCBpdGVtKSB7XG4gIGUucHJldmVudERlZmF1bHQoKTtcbiAgYXhpb3MucG9zdCgnL2FwaS9saXN0Jywge1xuICAgIFwiZmlyc3ROYW1lXCI6IGl0ZW0uZmlyc3RuYW1lLFxuICAgIFwibGFzdE5hbWVcIjogaXRlbS5sYXN0bmFtZSxcbiAgICBcImNvdW50cnlcIjogaXRlbS5jb3VudHJ5LFxuICAgIFwiY2l0eVwiOiBpdGVtLmNpdHksXG4gICAgXCJpc05pY2VcIjogZS50YXJnZXQubmFtZSA9PT0gXCJOaWNlXCIgPyB0cnVlIDogZmFsc2UsXG4gICAgXCJpc0NoZWNrZWRcIjogZmFsc2VcbiAgfSlcbiAgLnRoZW4ocmVzcG9uc2UgPT4ge1xuICAgIHRoaXMuZ2V0Q3VycmVudEl0ZW0odGhpcy51cGRhdGVTdGF0ZSwgXCJsaXN0XCIsIGAvbGlzdGApXG4gICAgYXhpb3MuZGVsZXRlKGAvYXBpL2xldHRlcnMvJHtpdGVtLmlkfWApXG4gICAgLnRoZW4oZGF0YSA9PiB0aGlzLmdldEN1cnJlbnRJdGVtKHRoaXMudXBkYXRlU3RhdGUsIFwiaW5ib3hcIiwgYC9sZXR0ZXJzYCkpXG4gICAgLmNhdGNoKGVycm9yID0+IGNvbnNvbGUuZXJyb3IoZXJyb3IpKTtcbiAgfSlcbiAgLmNhdGNoKGZ1bmN0aW9uIChlcnJvcikge1xuICAgIGNvbnNvbGUubG9nKGVycm9yKTtcbiAgfSk7XG59XG5cbm9uTGlzdFN1Ym1pdChlLCBpdGVtKSB7XG4gIGUucHJldmVudERlZmF1bHQoKTtcbiAgYXhpb3MucHV0KGAvYXBpL2xpc3QvJHtpdGVtLmlkfWAsIHtcbiAgICBcImlzTmljZVwiOiBlLnRhcmdldC5uYW1lID09PSBcIk5pY2VcIiA/IHRydWUgOiBmYWxzZSxcbiAgICBcImlzQ2hlY2tlZFwiOiB0cnVlXG4gIH0pXG4gIC50aGVuKHJlc3BvbnNlID0+IHtcbiAgICB0aGlzLmdldEN1cnJlbnRJdGVtKHRoaXMudXBkYXRlU3RhdGUsIFwibGlzdFwiLCBgL2xpc3RgKVxuICB9KVxuICAuY2F0Y2goZnVuY3Rpb24gKGVycm9yKSB7XG4gICAgY29uc29sZS5sb2coZXJyb3IpO1xuICB9KTtcbn1cblxuZ2V0Q3VycmVudEl0ZW0oY2IsIHN0YXRlLCBlbmRwb2ludCkge1xuICBheGlvcy5nZXQoZW5kcG9pbnQpXG4gIC50aGVuKGRhdGEgPT4gY2Ioc3RhdGUsIGRhdGEuZGF0YSkpXG4gIC5jYXRjaChlcnJvciA9PiBjb25zb2xlLmVycm9yKGVycm9yKSk7XG59XG5cbnVwZGF0ZVN0YXRlKHByb3AsIHZhbHVlKSB7XG4gICAgdGhpcy5zZXRTdGF0ZSh7XG4gICAgICBbcHJvcF06IHZhbHVlXG4gICAgfSk7XG4gIH1cblxuaGFuZGxlQ2hhbmdlKGUpIHtcbiAgdGhpcy5zZXRTdGF0ZSh7W2UudGFyZ2V0Lm5hbWVdIDogZS50YXJnZXQudmFsdWV9KVxufVxuXG5yZW5kZXIoKSB7XG4gIGxldCBpbmJveDtcbiAgaWYgKHRoaXMuc3RhdGUuaW5ib3gubGVuZ3RoKSB7XG4gICAgaW5ib3ggPSAoIDxJbmJveCBtZXNzYWdlcz17dGhpcy5zdGF0ZS5pbmJveH0gb25MZXR0ZXJTdWJtaXQ9e3RoaXMub25MZXR0ZXJTdWJtaXR9IC8+ICk7XG4gIH0gZWxzZSB7XG4gICAgaW5ib3ggPSAoIDxwPk5vIExldHRlcnMgaW4gSW5ib3g8L3A+ICk7XG4gIH1cblxuICBsZXQgbGlzdDtcbiAgaWYgKHRoaXMuc3RhdGUubGlzdC5sZW5ndGgpIHtcbiAgICBsaXN0ID0gKCA8TGlzdCBsaXN0PXt0aGlzLnN0YXRlLmxpc3R9IG9uTGlzdFN1Ym1pdD17dGhpcy5vbkxpc3RTdWJtaXR9IC8+ICk7XG4gIH0gZWxzZSB7XG4gICAgbGlzdCA9ICggPHA+TGlzdCBpcyBFbXB0eTwvcD4gKTtcbiAgfVxuICAgIHJldHVybiAoXG4gICAgICA8ZGl2IGNsYXNzTmFtZT0nbHRzX19jb250YWluZXInPlxuICAgICAgICA8V3JpdGVMZXR0ZXIgaGFuZGxlQ2hhbmdlPXt0aGlzLmhhbmRsZUNoYW5nZX0gb25Xcml0ZUxldHRlclN1Ym1pdD17dGhpcy5vbldyaXRlTGV0dGVyU3VibWl0fSAvPlxuICAgICAgICB7aW5ib3h9XG4gICAgICAgIHtsaXN0fVxuICAgICAgPC9kaXY+XG4gICAgKTtcbiAgfVxufSJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7Ozs7O0FBQ0E7QUFBQTtBQUNBO0FBREE7QUFDQTtBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBUkE7QUFXQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFsQkE7QUFtQkE7QUFDQTs7O0FBQ0E7QUFBQTtBQUNBO0FBQUE7QUFFQTtBQUNBO0FBREE7QUFHQTtBQUVBO0FBQ0E7QUFFQTtBQUVBO0FBQ0E7QUFEQTtBQUdBO0FBRUE7QUFDQTtBQUNBOzs7QUFFQTtBQUFBO0FBQ0E7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBTkE7QUFTQTtBQUNBO0FBRUE7QUFDQTtBQUNBOzs7QUFFQTtBQUFBO0FBQ0E7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBTkE7QUFTQTtBQUNBO0FBQUE7QUFDQTtBQUFBO0FBQ0E7QUFBQTtBQUNBO0FBRUE7QUFDQTtBQUNBOzs7QUFFQTtBQUFBO0FBQ0E7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUZBO0FBS0E7QUFDQTtBQUVBO0FBQ0E7QUFDQTs7O0FBRUE7QUFDQTtBQUNBO0FBQUE7QUFDQTtBQUFBO0FBQ0E7OztBQUVBO0FBQ0E7QUFHQTs7O0FBRUE7QUFDQTtBQUNBOzs7QUFFQTtBQUNBO0FBQ0E7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQUE7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUNBO0FBQUE7QUFDQTtBQUFBO0FBQ0E7QUFBQTtBQUFBO0FBS0E7Ozs7QUF0SUE7QUFDQTsiLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///./client/src/components/App.jsx\n");
+
+/***/ }),
+
+/***/ "./client/src/components/Inbox.jsx":
+/*!*****************************************!*\
+  !*** ./client/src/components/Inbox.jsx ***!
+  \*****************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var _Letter__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Letter */ \"./client/src/components/Letter.jsx\");\n\n\n\nvar Inbox = function Inbox(_ref) {\n  var messages = _ref.messages,\n      onLetterSubmit = _ref.onLetterSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, messages.map(function (item) {\n    return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Letter__WEBPACK_IMPORTED_MODULE_1__[\"default\"], {\n      key: item.id,\n      item: item,\n      onLetterSubmit: onLetterSubmit\n    });\n  }));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (Inbox);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvSW5ib3guanN4LmpzIiwic291cmNlcyI6WyJ3ZWJwYWNrOi8vLy4vY2xpZW50L3NyYy9jb21wb25lbnRzL0luYm94LmpzeD81NmU4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5pbXBvcnQgTGV0dGVyIGZyb20gJy4vTGV0dGVyJztcblxuY29uc3QgSW5ib3ggPSAoeyBtZXNzYWdlcywgb25MZXR0ZXJTdWJtaXQgfSkgPT4gKFxuXG4gIDxkaXY+XG4gICAge21lc3NhZ2VzLm1hcChpdGVtID0+ICggPExldHRlciBrZXk9e2l0ZW0uaWR9IGl0ZW09e2l0ZW19IG9uTGV0dGVyU3VibWl0PXtvbkxldHRlclN1Ym1pdH0gLz4gKSl9XG4gIDwvZGl2PlxuKTtcblxuZXhwb3J0IGRlZmF1bHQgSW5ib3g7Il0sIm1hcHBpbmdzIjoiQUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQ0E7QUFDQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBR0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBSEE7QUFDQTtBQU1BIiwic291cmNlUm9vdCI6IiJ9\n//# sourceURL=webpack-internal:///./client/src/components/Inbox.jsx\n");
 
 /***/ }),
 
@@ -106,7 +826,43 @@ eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) *
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n\n\nvar Letter = function Letter(_ref) {\n  var handleChange = _ref.handleChange,\n      onLetterSubmit = _ref.onLetterSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", {\n    className: \"letter\"\n  }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"h2\", null, \"Author\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"form\", {\n    onChange: handleChange,\n    onSubmit: onLetterSubmit\n  }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'subject',\n    placeholder: \"Subject\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'firstName',\n    placeholder: \"First Name\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'lastName',\n    placeholder: \"Last Name\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'country',\n    placeholder: \"Country\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'city',\n    placeholder: \"City\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"textarea\", {\n    className: \"letter-body-textarea\",\n    name: 'message',\n    placeholder: \"Write your letter here\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    className: \"letter-submit-button\",\n    type: \"submit\"\n  }, \"Send Letter\")));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (Letter);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvTGV0dGVyLmpzeC5qcyIsInNvdXJjZXMiOlsid2VicGFjazovLy8uL2NsaWVudC9zcmMvY29tcG9uZW50cy9MZXR0ZXIuanN4PzI4N2UiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcblxuY29uc3QgTGV0dGVyID0gKHsgaGFuZGxlQ2hhbmdlLCBvbkxldHRlclN1Ym1pdCB9KSA9PiAoXG5cbiAgPGRpdiBjbGFzc05hbWU9XCJsZXR0ZXJcIj5cbiAgICA8aDI+QXV0aG9yPC9oMj5cbiAgICA8Zm9ybSBvbkNoYW5nZT17aGFuZGxlQ2hhbmdlfSBvblN1Ym1pdD17b25MZXR0ZXJTdWJtaXR9ID5cbiAgICAgIDxpbnB1dCBjbGFzc05hbWU9XCJsZXR0ZXItaW5wdXRcIiB0eXBlPVwidGV4dFwiICBuYW1lPXsnc3ViamVjdCd9IHBsYWNlaG9sZGVyPVwiU3ViamVjdFwiPjwvaW5wdXQ+XG4gICAgICA8aW5wdXQgY2xhc3NOYW1lPVwibGV0dGVyLWlucHV0XCIgdHlwZT1cInRleHRcIiAgbmFtZT17J2ZpcnN0TmFtZSd9IHBsYWNlaG9sZGVyPVwiRmlyc3QgTmFtZVwiPjwvaW5wdXQ+XG4gICAgICA8aW5wdXQgY2xhc3NOYW1lPVwibGV0dGVyLWlucHV0XCIgdHlwZT1cInRleHRcIiAgbmFtZT17J2xhc3ROYW1lJ30gcGxhY2Vob2xkZXI9XCJMYXN0IE5hbWVcIj48L2lucHV0PlxuICAgICAgPGlucHV0IGNsYXNzTmFtZT1cImxldHRlci1pbnB1dFwiIHR5cGU9XCJ0ZXh0XCIgIG5hbWU9eydjb3VudHJ5J30gcGxhY2Vob2xkZXI9XCJDb3VudHJ5XCI+PC9pbnB1dD5cbiAgICAgIDxpbnB1dCBjbGFzc05hbWU9XCJsZXR0ZXItaW5wdXRcIiB0eXBlPVwidGV4dFwiICBuYW1lPXsnY2l0eSd9IHBsYWNlaG9sZGVyPVwiQ2l0eVwiPjwvaW5wdXQ+XG4gICAgICA8dGV4dGFyZWEgY2xhc3NOYW1lPVwibGV0dGVyLWJvZHktdGV4dGFyZWFcIiAgbmFtZT17J21lc3NhZ2UnfSBwbGFjZWhvbGRlcj1cIldyaXRlIHlvdXIgbGV0dGVyIGhlcmVcIj48L3RleHRhcmVhPlxuICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJsZXR0ZXItc3VibWl0LWJ1dHRvblwiIHR5cGU9XCJzdWJtaXRcIj5TZW5kIExldHRlcjwvYnV0dG9uPlxuICAgIDwvZm9ybT5cbiAgPC9kaXY+XG4pO1xuXG5leHBvcnQgZGVmYXVsdCBMZXR0ZXI7Il0sIm1hcHBpbmdzIjoiQUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFFQTtBQUFBO0FBRUE7QUFBQTtBQUFBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQVhBO0FBQ0E7QUFlQSIsInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///./client/src/components/Letter.jsx\n");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n\n\nvar Letter = function Letter(_ref) {\n  var item = _ref.item,\n      onLetterSubmit = _ref.onLetterSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"ul\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"li\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Name: \", item.firstname, \" \", item.lastname), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Location: \", item.city, \", \", item.country), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Subject: \", item.subject), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Message: \", item.message), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    onClick: function onClick(e) {\n      return onLetterSubmit(e, item);\n    },\n    name: \"Naughty\",\n    type: \"submit\"\n  }, \"Naughty\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"span\", null, \"or\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    onClick: function onClick(e) {\n      return onLetterSubmit(e, item);\n    },\n    name: \"Nice\",\n    type: \"submit\"\n  }, \"Nice\")))));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (Letter);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvTGV0dGVyLmpzeC5qcyIsInNvdXJjZXMiOlsid2VicGFjazovLy8uL2NsaWVudC9zcmMvY29tcG9uZW50cy9MZXR0ZXIuanN4PzI4N2UiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcblxuY29uc3QgTGV0dGVyID0gKHsgaXRlbSwgb25MZXR0ZXJTdWJtaXQgfSkgPT4gKFxuXG4gIDxkaXY+XG4gICAgPHVsPlxuICAgICAgPGxpPlxuICAgICAgICAgIDxkaXY+TmFtZToge2l0ZW0uZmlyc3RuYW1lfSB7aXRlbS5sYXN0bmFtZX08L2Rpdj5cbiAgICAgICAgICA8ZGl2PkxvY2F0aW9uOiB7aXRlbS5jaXR5fSwge2l0ZW0uY291bnRyeX08L2Rpdj5cbiAgICAgICAgICA8ZGl2PlN1YmplY3Q6IHtpdGVtLnN1YmplY3R9PC9kaXY+XG4gICAgICAgICAgPGRpdj5NZXNzYWdlOiB7aXRlbS5tZXNzYWdlfTwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9eyhlKSA9PiBvbkxldHRlclN1Ym1pdChlLCBpdGVtKX0gbmFtZT1cIk5hdWdodHlcIiB0eXBlPVwic3VibWl0XCI+TmF1Z2h0eTwvYnV0dG9uPlxuICAgICAgICAgICAgPHNwYW4+b3I8L3NwYW4+XG4gICAgICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9eyhlKSA9PiBvbkxldHRlclN1Ym1pdChlLCBpdGVtKX0gbmFtZT1cIk5pY2VcIiB0eXBlPVwic3VibWl0XCI+TmljZTwvYnV0dG9uPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgPC9saT5cbiAgICA8L3VsPlxuICA8L2Rpdj5cbik7XG5cbmV4cG9ydCBkZWZhdWx0IExldHRlcjsiXSwibWFwcGluZ3MiOiJBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQ0E7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQVVBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUVBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQVpBO0FBQ0E7QUFrQkEiLCJzb3VyY2VSb290IjoiIn0=\n//# sourceURL=webpack-internal:///./client/src/components/Letter.jsx\n");
+
+/***/ }),
+
+/***/ "./client/src/components/List.jsx":
+/*!****************************************!*\
+  !*** ./client/src/components/List.jsx ***!
+  \****************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var _Person__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Person */ \"./client/src/components/Person.jsx\");\n\n\n\nvar List = function List(_ref) {\n  var list = _ref.list,\n      onListSubmit = _ref.onListSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"p\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"b\", null, \"THE LIST\")), list.map(function (item) {\n    return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Person__WEBPACK_IMPORTED_MODULE_1__[\"default\"], {\n      key: item.id,\n      item: item,\n      onListSubmit: onListSubmit\n    });\n  }));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (List);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvTGlzdC5qc3guanMiLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8vLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvTGlzdC5qc3g/ZjMyYSJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xuaW1wb3J0IFBlcnNvbiBmcm9tICcuL1BlcnNvbic7XG5cbmNvbnN0IExpc3QgPSAoeyBsaXN0LCBvbkxpc3RTdWJtaXQgfSkgPT4gKFxuXG4gIDxkaXY+XG4gICAgPHA+PGI+VEhFIExJU1Q8L2I+PC9wPlxuICAgIHtsaXN0Lm1hcChpdGVtID0+ICggPFBlcnNvbiBrZXk9e2l0ZW0uaWR9IGl0ZW09e2l0ZW19IG9uTGlzdFN1Ym1pdD17b25MaXN0U3VibWl0fSAvPiApKX1cbiAgPC9kaXY+XG4pO1xuXG5leHBvcnQgZGVmYXVsdCBMaXN0OyJdLCJtYXBwaW5ncyI6IkFBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQ0E7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUlBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUpBO0FBQ0E7QUFPQSIsInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///./client/src/components/List.jsx\n");
+
+/***/ }),
+
+/***/ "./client/src/components/Person.jsx":
+/*!******************************************!*\
+  !*** ./client/src/components/Person.jsx ***!
+  \******************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n\n\nvar Person = function Person(_ref) {\n  var item = _ref.item,\n      onListSubmit = _ref.onListSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"ul\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"li\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Name: \", item.firstname, \" \", item.lastname), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Location: \", item.city, \", \", item.country), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, item.isnice ? \"Nice\" : \"Naughty\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Have you checked twice?\"), item.ischecked ? react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, \"Yes you have\") : react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", null, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    onClick: function onClick(e) {\n      return onListSubmit(e, item);\n    },\n    name: \"Naughty\",\n    type: \"submit\"\n  }, \"Naughty\"), \"or\", react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    onClick: function onClick(e) {\n      return onListSubmit(e, item);\n    },\n    name: \"Nice\",\n    type: \"submit\"\n  }, \"Nice\")))));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (Person);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvUGVyc29uLmpzeC5qcyIsInNvdXJjZXMiOlsid2VicGFjazovLy8uL2NsaWVudC9zcmMvY29tcG9uZW50cy9QZXJzb24uanN4P2M0MGYiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcblxuY29uc3QgUGVyc29uID0gKHsgaXRlbSwgb25MaXN0U3VibWl0IH0pID0+IChcblxuICA8ZGl2PlxuICAgIDx1bD5cbiAgICAgIDxsaT5cbiAgICAgICAgPGRpdj5OYW1lOiB7aXRlbS5maXJzdG5hbWV9IHtpdGVtLmxhc3RuYW1lfTwvZGl2PlxuICAgICAgICA8ZGl2PkxvY2F0aW9uOiB7aXRlbS5jaXR5fSwge2l0ZW0uY291bnRyeX08L2Rpdj5cbiAgICAgICAgPGRpdj57aXRlbS5pc25pY2UgPyBcIk5pY2VcIiA6IFwiTmF1Z2h0eVwifTwvZGl2PlxuICAgICAgICA8ZGl2PkhhdmUgeW91IGNoZWNrZWQgdHdpY2U/PC9kaXY+XG4gICAgICAgIHtpdGVtLmlzY2hlY2tlZCA/ICg8ZGl2PlllcyB5b3UgaGF2ZTwvZGl2PikgOiAoPGRpdj48YnV0dG9uIG9uQ2xpY2s9eyhlKSA9PiBvbkxpc3RTdWJtaXQoZSwgaXRlbSl9IG5hbWU9XCJOYXVnaHR5XCIgdHlwZT1cInN1Ym1pdFwiPk5hdWdodHk8L2J1dHRvbj5cbiAgICAgICAgICBvclxuICAgICAgICAgIDxidXR0b24gb25DbGljaz17KGUpID0+IG9uTGlzdFN1Ym1pdChlLCBpdGVtKX0gbmFtZT1cIk5pY2VcIiB0eXBlPVwic3VibWl0XCI+TmljZTwvYnV0dG9uPjwvZGl2Pil9XG4gICAgICA8L2xpPlxuICAgIDwvdWw+XG4gIDwvZGl2PlxuKTtcblxuZXhwb3J0IGRlZmF1bHQgUGVyc29uOyJdLCJtYXBwaW5ncyI6IkFBQUE7QUFBQTtBQUFBO0FBQUE7QUFDQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBU0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBRUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBWEE7QUFDQTtBQWdCQSIsInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///./client/src/components/Person.jsx\n");
+
+/***/ }),
+
+/***/ "./client/src/components/WriteLetter.jsx":
+/*!***********************************************!*\
+  !*** ./client/src/components/WriteLetter.jsx ***!
+  \***********************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);\n\n\nvar WriteLetter = function WriteLetter(_ref) {\n  var handleChange = _ref.handleChange,\n      onWriteLetterSubmit = _ref.onWriteLetterSubmit;\n  return react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"div\", {\n    className: \"letter\"\n  }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"h2\", null, \"Author\"), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"form\", {\n    onChange: handleChange,\n    onSubmit: onWriteLetterSubmit\n  }, react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'subject',\n    placeholder: \"Subject\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'firstName',\n    placeholder: \"First Name\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'lastName',\n    placeholder: \"Last Name\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'country',\n    placeholder: \"Country\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"input\", {\n    className: \"letter-input\",\n    type: \"text\",\n    name: 'city',\n    placeholder: \"City\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"textarea\", {\n    className: \"letter-body-textarea\",\n    name: 'message',\n    placeholder: \"Write your letter here\"\n  }), react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(\"button\", {\n    className: \"letter-submit-button\",\n    type: \"submit\"\n  }, \"Send Letter\")));\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (WriteLetter);//# sourceURL=[module]\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiLi9jbGllbnQvc3JjL2NvbXBvbmVudHMvV3JpdGVMZXR0ZXIuanN4LmpzIiwic291cmNlcyI6WyJ3ZWJwYWNrOi8vLy4vY2xpZW50L3NyYy9jb21wb25lbnRzL1dyaXRlTGV0dGVyLmpzeD85YmNiIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5cbmNvbnN0IFdyaXRlTGV0dGVyID0gKHsgaGFuZGxlQ2hhbmdlLCBvbldyaXRlTGV0dGVyU3VibWl0IH0pID0+IChcblxuICA8ZGl2IGNsYXNzTmFtZT1cImxldHRlclwiPlxuICAgIDxoMj5BdXRob3I8L2gyPlxuICAgIDxmb3JtIG9uQ2hhbmdlPXtoYW5kbGVDaGFuZ2V9IG9uU3VibWl0PXtvbldyaXRlTGV0dGVyU3VibWl0fSA+XG4gICAgICA8aW5wdXQgY2xhc3NOYW1lPVwibGV0dGVyLWlucHV0XCIgdHlwZT1cInRleHRcIiAgbmFtZT17J3N1YmplY3QnfSBwbGFjZWhvbGRlcj1cIlN1YmplY3RcIj48L2lucHV0PlxuICAgICAgPGlucHV0IGNsYXNzTmFtZT1cImxldHRlci1pbnB1dFwiIHR5cGU9XCJ0ZXh0XCIgIG5hbWU9eydmaXJzdE5hbWUnfSBwbGFjZWhvbGRlcj1cIkZpcnN0IE5hbWVcIj48L2lucHV0PlxuICAgICAgPGlucHV0IGNsYXNzTmFtZT1cImxldHRlci1pbnB1dFwiIHR5cGU9XCJ0ZXh0XCIgIG5hbWU9eydsYXN0TmFtZSd9IHBsYWNlaG9sZGVyPVwiTGFzdCBOYW1lXCI+PC9pbnB1dD5cbiAgICAgIDxpbnB1dCBjbGFzc05hbWU9XCJsZXR0ZXItaW5wdXRcIiB0eXBlPVwidGV4dFwiICBuYW1lPXsnY291bnRyeSd9IHBsYWNlaG9sZGVyPVwiQ291bnRyeVwiPjwvaW5wdXQ+XG4gICAgICA8aW5wdXQgY2xhc3NOYW1lPVwibGV0dGVyLWlucHV0XCIgdHlwZT1cInRleHRcIiAgbmFtZT17J2NpdHknfSBwbGFjZWhvbGRlcj1cIkNpdHlcIj48L2lucHV0PlxuICAgICAgPHRleHRhcmVhIGNsYXNzTmFtZT1cImxldHRlci1ib2R5LXRleHRhcmVhXCIgIG5hbWU9eydtZXNzYWdlJ30gcGxhY2Vob2xkZXI9XCJXcml0ZSB5b3VyIGxldHRlciBoZXJlXCI+PC90ZXh0YXJlYT5cbiAgICAgIDxidXR0b24gY2xhc3NOYW1lPVwibGV0dGVyLXN1Ym1pdC1idXR0b25cIiB0eXBlPVwic3VibWl0XCI+U2VuZCBMZXR0ZXI8L2J1dHRvbj5cbiAgICA8L2Zvcm0+XG4gIDwvZGl2PlxuKTtcblxuZXhwb3J0IGRlZmF1bHQgV3JpdGVMZXR0ZXI7Il0sIm1hcHBpbmdzIjoiQUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFFQTtBQUFBO0FBRUE7QUFBQTtBQUFBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQ0E7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFDQTtBQUFBO0FBQUE7QUFBQTtBQUNBO0FBQUE7QUFBQTtBQVhBO0FBQ0E7QUFlQSIsInNvdXJjZVJvb3QiOiIifQ==\n//# sourceURL=webpack-internal:///./client/src/components/WriteLetter.jsx\n");
 
 /***/ }),
 

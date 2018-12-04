@@ -4,7 +4,7 @@
   "description": "Full Stack Crud Application for the Holidays",
   "main": "index.js",
   "scripts": {
-    "react-dev-w": "webpack -d --watch & nodemon --inspect server/index.js",
+    "react-dev-w": "stylus -c client/dist --out client/dist && stylus -c -w client/dist --out client/dist & webpack -d --watch & nodemon --inspect server/index.js",
     "react-dev": "webpack -d --watch",
     "startmon": "nodemon --inspect server/index.js",
     "db:init": "psql -d lts -U drewcurtis -c 'DROP TABLE IF EXISTS letters' && node db/init.js",
